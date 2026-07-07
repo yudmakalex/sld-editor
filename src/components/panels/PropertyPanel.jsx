@@ -23,8 +23,11 @@ export default function PropertyPanel() {
   const nodes = useSldStore((s) => s.nodes);
   const updateNodeData = useSldStore((s) => s.updateNodeData);
   const deleteNode = useSldStore((s) => s.deleteNode);
+  const liveMode = useSldStore((s) => s.liveMode);
+  const liveStatuses = useSldStore((s) => s.liveStatuses);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const liveStatus = selectedNodeId ? liveStatuses[selectedNodeId] : null;
 
   if (!selectedNode) {
     return (
@@ -106,6 +109,43 @@ export default function PropertyPanel() {
           </span>
         </div>
       </div>
+
+      {/* Live Data Panel */}
+      {liveMode && liveStatus && (
+        <div style={{
+          padding: "10px 16px",
+          borderBottom: "1px solid #e2e8f0",
+          background: "#f0fdf4",
+        }}>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#166534", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+            Live Data (IEC 61850)
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+            <LiveField label="Status" value={liveStatus.status} color={liveStatus.status === "closed" ? "#16a34a" : "#dc2626"} />
+            <LiveField label="Quality" value={liveStatus.quality} color={liveStatus.quality === "Good" ? "#16a34a" : "#d97706"} />
+            <LiveField label="stVal" value={String(liveStatus.stVal)} />
+            <LiveField label="Timestamp" value={liveStatus.timestamp ? new Date(liveStatus.timestamp).toLocaleTimeString() : "-"} />
+          </div>
+        </div>
+      )}
+
+      {/* SCD Info */}
+      {selectedNode.data.sclType && (
+        <div style={{
+          padding: "10px 16px",
+          borderBottom: "1px solid #e2e8f0",
+          background: "#eff6ff",
+        }}>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#1e40af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
+            IEC 61850
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+            <InfoChip label="SCL Type" value={selectedNode.data.sclType} color="#2563eb" />
+            <InfoChip label="Category" value={selectedNode.data.category} color="#7c3aed" />
+            {selectedNode.data.pathName && <InfoChip label="Path" value={selectedNode.data.pathName} color="#64748b" />}
+          </div>
+        </div>
+      )}
 
       {/* Properties form */}
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
@@ -283,5 +323,45 @@ export default function PropertyPanel() {
         </button>
       </div>
     </div>
+  );
+}
+
+function LiveField({ label, value, color }) {
+  return (
+    <div style={{
+      padding: "4px 6px",
+      background: "#fff",
+      borderRadius: "4px",
+      border: "1px solid #dcfce7",
+    }}>
+      <div style={{ fontSize: "9px", color: "#6b7280", fontFamily: "'JetBrains Mono', monospace" }}>{label}</div>
+      <div style={{
+        fontSize: "11px",
+        fontWeight: 600,
+        color: color || "#1e293b",
+        fontFamily: "'JetBrains Mono', monospace",
+      }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InfoChip({ label, value, color }) {
+  return (
+    <span style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "4px",
+      fontSize: "9px",
+      padding: "2px 6px",
+      borderRadius: "3px",
+      background: `${color}10`,
+      color,
+      fontFamily: "'JetBrains Mono', monospace",
+    }}>
+      <span style={{ fontWeight: 700 }}>{label}:</span>
+      <span>{value}</span>
+    </span>
   );
 }

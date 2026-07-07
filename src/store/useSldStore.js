@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import { getDefaultsByType } from "../schemas/sldSchemas";
 import { layoutGraph } from "../utils/layout";
+import { renderScdToFlow } from "../iec61850/renderer/scdRenderer";
+import { liveEngine } from "../iec61850/live/liveEngine";
 
-let nodeIdCounter = 0;
+let nodeIdCounter = 100;
 const generateNodeId = () => `node_${++nodeIdCounter}`;
 
 const initialNodes = [
@@ -45,13 +47,16 @@ const initialEdges = [
   { id: "e-cb1-load1", source: "cb_1", target: "load_1", type: "smoothstep" },
 ];
 
-// Auto-layout initial nodes
 const laidInitial = layoutGraph(initialNodes, initialEdges);
 
 const useSldStore = create((set, get) => ({
   nodes: laidInitial,
   edges: initialEdges,
   selectedNodeId: null,
+  scdModel: null,
+  scdFileName: null,
+  liveMode: false,
+  liveStatuses: {},
 
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
@@ -68,10 +73,7 @@ const useSldStore = create((set, get) => ({
       position,
       data: { ...defaults, id: defaults.id || id },
     };
-    set({
-      nodes: [...nodes, newNode],
-      selectedNodeId: id,
-    });
+    set({ nodes: [...nodes, newNode], selectedNodeId: id });
     return id;
   },
 
@@ -114,6 +116,98 @@ const useSldStore = create((set, get) => ({
   getSelectedNode: () => {
     const { nodes, selectedNodeId } = get();
     return nodes.find((n) => n.id === selectedNodeId) || null;
+  },
+
+  // ─── SCD Import ────────────────────────────────────────────────
+
+  importScd: (scdModel, fileName) => {
+    const { nodes: existingNodes, edges: existingEdges } = get();
+
+    const { nodes: scdNodes, edges: scdEdges } = renderScdToFlow(scdModel);
+
+    // Merge: keep existing manual nodes, add SCD nodes
+    const allNodes = [...existingNodes, ...scdNodes];
+    const allEdges = [...existingEdges, ...scdEdges];
+
+    const laid = layoutGraph(allNodes, allEdges);
+
+    liveEngine.stop();
+    liveEngine.init(laid);
+
+    set({
+      nodes: laid,
+      edges: allEdges,
+      scdModel,
+      scdFileName: fileName,
+      liveMode: false,
+      liveStatuses: {},
+    });
+  },
+
+  clearScd: () => {
+    liveEngine.stop();
+    set({
+      scdModel: null,
+      scdFileName: null,
+      liveMode: false,
+      liveStatuses: {},
+    });
+  },
+
+  // ─── Live Data ─────────────────────────────────────────────────
+
+  toggleLiveMode: () => {
+    const { liveMode, nodes } = get();
+    if (liveMode) {
+      liveEngine.stop();
+      set({ liveMode: false, liveStatuses: {} });
+    } else {
+      liveEngine.init(nodes);
+      liveEngine.start();
+
+      // Subscribe to all nodes
+      nodes.forEach((n) => {
+        if (n.data.status !== undefined) {
+          liveEngine.subscribe(n.id, (data) => {
+            const { nodes: currentNodes, liveStatuses } = get();
+            const updatedNodes = currentNodes.map((node) => {
+              if (node.id !== n.id) return node;
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  status: data.displayStatus,
+                  lastQuality: data.q,
+                  lastTimestamp: data.t,
+                },
+              };
+            });
+            set({
+              nodes: updatedNodes,
+              liveStatuses: {
+                ...liveStatuses,
+                [n.id]: {
+                  status: data.displayStatus,
+                  quality: data.q,
+                  timestamp: data.t,
+                  stVal: data.stVal,
+                },
+              },
+            });
+          });
+        }
+      });
+
+      set({ liveMode: true });
+    }
+  },
+
+  controlNode: (nodeId, value) => {
+    liveEngine.control(nodeId, value);
+  },
+
+  getLiveStatus: (nodeId) => {
+    return get().liveStatuses[nodeId] || null;
   },
 }));
 
