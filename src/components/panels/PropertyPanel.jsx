@@ -1,5 +1,6 @@
 import React from "react";
 import { getSchemaByType } from "../../schemas/sldSchemas";
+import { DpsEntityTypes } from "../../dps/dpsSchema";
 import useSldStore from "../../store/useSldStore";
 
 const typeLabels = {
@@ -28,6 +29,8 @@ export default function PropertyPanel() {
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const liveStatus = selectedNodeId ? liveStatuses[selectedNodeId] : null;
+  const can = useSldStore((s) => s.can);
+  const controlNode = useSldStore((s) => s.controlNode);
 
   if (!selectedNode) {
     return (
@@ -300,27 +303,98 @@ export default function PropertyPanel() {
         })}
       </div>
 
+      {/* DPS Info */}
+      {selectedNode.data.dpsType && DpsEntityTypes[selectedNode.data.dpsType] && (
+        <div style={{
+          padding: "10px 16px",
+          borderBottom: "1px solid #e2e8f0",
+          background: "#faf5ff",
+        }}>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+            DPS Topology
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+            <InfoChip label="Entity" value={selectedNode.data.dpsType} color="#7c3aed" />
+            {selectedNode.data.operatingLimit && <InfoChip label="Limit" value={selectedNode.data.operatingLimit} color="#2563eb" />}
+            {selectedNode.data.model && <InfoChip label="Model" value={selectedNode.data.model} color="#16a34a" />}
+            {selectedNode.data.telemetryId && <InfoChip label="Telemetry" value={selectedNode.data.telemetryId} color="#d97706" />}
+            {selectedNode.data.policy && <InfoChip label="Policy" value={selectedNode.data.policy} color="#dc2626" />}
+          </div>
+          {selectedNode.data.redfish && (
+            <div style={{ marginTop: "6px", padding: "4px 6px", background: "#fff", borderRadius: "4px", border: "1px solid #e9d5ff" }}>
+              <div style={{ fontSize: "9px", color: "#6b7280", fontFamily: "'JetBrains Mono', monospace" }}>Redfish</div>
+              <div style={{ fontSize: "10px", color: "#1e293b", fontFamily: "'JetBrains Mono', monospace", wordBreak: "break-all" }}>
+                {selectedNode.data.redfish.URL}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Interactive Controls */}
+      {(selectedNode.data.status !== undefined || selectedNode.data.sclType === "CBR" || selectedNode.data.sclType === "DIS") && (
+        <div style={{
+          padding: "10px 16px",
+          borderBottom: "1px solid #e2e8f0",
+          background: "#fef2f2",
+        }}>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#991b1b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+            Control
+          </div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button
+              onClick={() => controlNode(selectedNode.id, "close")}
+              disabled={!can("control")}
+              style={{
+                flex: 1, padding: "6px", fontSize: "11px", fontWeight: 700,
+                color: selectedNode.data.status === "closed" ? "#fff" : "#16a34a",
+                background: selectedNode.data.status === "closed" ? "#16a34a" : "#fff",
+                border: "2px solid #16a34a", borderRadius: "4px",
+                cursor: can("control") ? "pointer" : "not-allowed",
+                opacity: can("control") ? 1 : 0.5,
+              }}
+            >
+              CLOSE
+            </button>
+            <button
+              onClick={() => controlNode(selectedNode.id, "open")}
+              disabled={!can("control")}
+              style={{
+                flex: 1, padding: "6px", fontSize: "11px", fontWeight: 700,
+                color: selectedNode.data.status === "open" ? "#fff" : "#dc2626",
+                background: selectedNode.data.status === "open" ? "#dc2626" : "#fff",
+                border: "2px solid #dc2626", borderRadius: "4px",
+                cursor: can("control") ? "pointer" : "not-allowed",
+                opacity: can("control") ? 1 : 0.5,
+              }}
+            >
+              OPEN
+            </button>
+          </div>
+          {!can("control") && (
+            <div style={{ fontSize: "9px", color: "#94a3b8", marginTop: "4px", textAlign: "center" }}>
+              Requires Operator or Admin role
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Footer */}
-      <div style={{ padding: "12px 16px", borderTop: "1px solid #e2e8f0" }}>
-        <button
-          onClick={() => deleteNode(selectedNode.id)}
-          style={{
-            width: "100%",
-            padding: "8px",
-            fontSize: "12px",
-            fontWeight: 600,
-            color: "#fff",
-            background: "#dc2626",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#b91c1c")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "#dc2626")}
-        >
-          Delete Node
-        </button>
+      <div style={{ padding: "10px 16px", borderTop: "1px solid #e2e8f0" }}>
+        {can("delete") && (
+          <button
+            onClick={() => deleteNode(selectedNode.id)}
+            style={{
+              width: "100%", padding: "7px", fontSize: "11px", fontWeight: 600,
+              color: "#fff", background: "#dc2626", border: "none",
+              borderRadius: "5px", cursor: "pointer",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#b91c1c")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "#dc2626")}
+          >
+            Delete Node
+          </button>
+        )}
       </div>
     </div>
   );

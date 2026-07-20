@@ -2,7 +2,9 @@ import { create } from "zustand";
 import { getDefaultsByType } from "../schemas/sldSchemas";
 import { layoutGraph } from "../utils/layout";
 import { renderScdToFlow } from "../iec61850/renderer/scdRenderer";
+import { parseDpsTopology } from "../dps/renderer/dpsRenderer";
 import { liveEngine } from "../iec61850/live/liveEngine";
+import { hasPermission, defaultUsers } from "../auth/roles";
 
 let nodeIdCounter = 100;
 const generateNodeId = () => `node_${++nodeIdCounter}`;
@@ -55,15 +57,34 @@ const useSldStore = create((set, get) => ({
   selectedNodeId: null,
   scdModel: null,
   scdFileName: null,
+  dpsTopology: null,
+  dpsFileName: null,
   liveMode: false,
   liveStatuses: {},
+  alarms: [],
 
+  // ─── Auth / Roles ────────────────────────────────────────────
+  currentUser: defaultUsers[0],
+  users: defaultUsers,
+  impersonating: false,
+
+  switchUser: (userId) => {
+    const user = get().users.find((u) => u.id === userId);
+    if (user) set({ currentUser: user, impersonating: user.id !== defaultUsers[0].id });
+  },
+
+  can: (permission) => {
+    return hasPermission(get().currentUser.role, permission);
+  },
+
+  // ─── Core CRUD ───────────────────────────────────────────────
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
 
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
 
   addNode: (type, position) => {
+    if (!get().can("edit")) return null;
     const { nodes } = get();
     const id = generateNodeId();
     const defaults = getDefaultsByType(type);
@@ -78,6 +99,7 @@ const useSldStore = create((set, get) => ({
   },
 
   updateNodeData: (nodeId, key, value) => {
+    if (!get().can("edit")) return;
     const { nodes } = get();
     set({
       nodes: nodes.map((n) =>
@@ -87,6 +109,7 @@ const useSldStore = create((set, get) => ({
   },
 
   deleteNode: (nodeId) => {
+    if (!get().can("delete")) return;
     const { nodes, edges } = get();
     set({
       nodes: nodes.filter((n) => n.id !== nodeId),
@@ -96,6 +119,7 @@ const useSldStore = create((set, get) => ({
   },
 
   addEdge: (edge) => {
+    if (!get().can("edit")) return;
     const { edges } = get();
     const id = `e_${edge.source}_${edge.target}`;
     const newEdge = { ...edge, id, type: "smoothstep" };
@@ -103,6 +127,7 @@ const useSldStore = create((set, get) => ({
   },
 
   deleteEdge: (edgeId) => {
+    if (!get().can("edit")) return;
     const { edges } = get();
     set({ edges: edges.filter((e) => e.id !== edgeId) });
   },
@@ -121,37 +146,47 @@ const useSldStore = create((set, get) => ({
   // ─── SCD Import ────────────────────────────────────────────────
 
   importScd: (scdModel, fileName) => {
+    if (!get().can("import_scd")) return false;
     const { nodes: existingNodes, edges: existingEdges } = get();
-
     const { nodes: scdNodes, edges: scdEdges } = renderScdToFlow(scdModel);
-
-    // Merge: keep existing manual nodes, add SCD nodes
     const allNodes = [...existingNodes, ...scdNodes];
     const allEdges = [...existingEdges, ...scdEdges];
-
     const laid = layoutGraph(allNodes, allEdges);
-
     liveEngine.stop();
     liveEngine.init(laid);
-
     set({
-      nodes: laid,
-      edges: allEdges,
-      scdModel,
-      scdFileName: fileName,
-      liveMode: false,
-      liveStatuses: {},
+      nodes: laid, edges: allEdges, scdModel, scdFileName: fileName,
+      liveMode: false, liveStatuses: {},
     });
+    return true;
   },
 
   clearScd: () => {
     liveEngine.stop();
+    set({ scdModel: null, scdFileName: null, liveMode: false, liveStatuses: {} });
+  },
+
+  // ─── DPS Import ───────────────────────────────────────────────
+
+  importDps: (topology, fileName) => {
+    if (!get().can("import_dps")) return false;
+    const { nodes: existingNodes, edges: existingEdges } = get();
+    const { nodes: dpsNodes, edges: dpsEdges } = parseDpsTopology(topology);
+    const allNodes = [...existingNodes, ...dpsNodes];
+    const allEdges = [...existingEdges, ...dpsEdges];
+    const laid = layoutGraph(allNodes, allEdges);
+    liveEngine.stop();
+    liveEngine.init(laid);
     set({
-      scdModel: null,
-      scdFileName: null,
-      liveMode: false,
-      liveStatuses: {},
+      nodes: laid, edges: allEdges, dpsTopology: topology, dpsFileName: fileName,
+      liveMode: false, liveStatuses: {},
     });
+    return true;
+  },
+
+  clearDps: () => {
+    liveEngine.stop();
+    set({ dpsTopology: null, dpsFileName: null, liveMode: false, liveStatuses: {} });
   },
 
   // ─── Live Data ─────────────────────────────────────────────────
@@ -164,12 +199,10 @@ const useSldStore = create((set, get) => ({
     } else {
       liveEngine.init(nodes);
       liveEngine.start();
-
-      // Subscribe to all nodes
       nodes.forEach((n) => {
         if (n.data.status !== undefined) {
           liveEngine.subscribe(n.id, (data) => {
-            const { nodes: currentNodes, liveStatuses } = get();
+            const { nodes: currentNodes, liveStatuses, alarms } = get();
             const updatedNodes = currentNodes.map((node) => {
               if (node.id !== n.id) return node;
               return {
@@ -182,33 +215,73 @@ const useSldStore = create((set, get) => ({
                 },
               };
             });
+
+            // Generate alarm on trip
+            const newAlarms = [...alarms];
+            if (data.stVal === 0 && data.q === "Good") {
+              const existingAlarm = newAlarms.find(
+                (a) => a.nodeId === n.id && !a.acknowledged
+              );
+              if (!existingAlarm) {
+                newAlarms.push({
+                  id: `alarm_${Date.now()}_${n.id}`,
+                  nodeId: n.id,
+                  nodeName: n.data.name,
+                  type: "TRIP",
+                  message: `${n.data.name} tripped`,
+                  timestamp: data.t,
+                  severity: "critical",
+                  acknowledged: false,
+                });
+              }
+            }
+
             set({
               nodes: updatedNodes,
               liveStatuses: {
                 ...liveStatuses,
-                [n.id]: {
-                  status: data.displayStatus,
-                  quality: data.q,
-                  timestamp: data.t,
-                  stVal: data.stVal,
-                },
+                [n.id]: { status: data.displayStatus, quality: data.q, timestamp: data.t, stVal: data.stVal },
               },
+              alarms: newAlarms,
             });
           });
         }
       });
-
       set({ liveMode: true });
     }
   },
 
   controlNode: (nodeId, value) => {
+    if (!get().can("control")) return;
     liveEngine.control(nodeId, value);
   },
 
-  getLiveStatus: (nodeId) => {
-    return get().liveStatuses[nodeId] || null;
+  getLiveStatus: (nodeId) => get().liveStatuses[nodeId] || null,
+
+  // ─── Alarms ────────────────────────────────────────────────────
+
+  acknowledgeAlarm: (alarmId) => {
+    if (!get().can("acknowledge_alarms")) return;
+    set({
+      alarms: get().alarms.map((a) =>
+        a.id === alarmId ? { ...a, acknowledged: true } : a
+      ),
+    });
   },
+
+  acknowledgeAllAlarms: () => {
+    if (!get().can("acknowledge_alarms")) return;
+    set({
+      alarms: get().alarms.map((a) => ({ ...a, acknowledged: true })),
+    });
+  },
+
+  clearAlarms: () => {
+    if (!get().can("delete")) return;
+    set({ alarms: [] });
+  },
+
+  getActiveAlarmCount: () => get().alarms.filter((a) => !a.acknowledged).length,
 }));
 
 export default useSldStore;

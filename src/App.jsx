@@ -5,6 +5,8 @@ import Sidebar from "./components/panels/Sidebar";
 import PropertyPanel from "./components/panels/PropertyPanel";
 import useSldStore from "./store/useSldStore";
 import { parseScdFile } from "./iec61850/parser/scdParser";
+import { parseDpsFile } from "./dps/renderer/dpsRenderer";
+import { Roles } from "./auth/roles";
 
 export default function App() {
   return (
@@ -27,33 +29,47 @@ export default function App() {
 }
 
 function AppHeader() {
-  const fileInputRef = useRef(null);
+  const scdInputRef = useRef(null);
+  const dpsInputRef = useRef(null);
+
   const scdFileName = useSldStore((s) => s.scdFileName);
   const scdModel = useSldStore((s) => s.scdModel);
+  const dpsFileName = useSldStore((s) => s.dpsFileName);
+  const dpsTopology = useSldStore((s) => s.dpsTopology);
   const liveMode = useSldStore((s) => s.liveMode);
+  const currentUser = useSldStore((s) => s.currentUser);
+  const users = useSldStore((s) => s.users);
+  const alarms = useSldStore((s) => s.alarms);
   const importScd = useSldStore((s) => s.importScd);
+  const importDps = useSldStore((s) => s.importDps);
   const clearScd = useSldStore((s) => s.clearScd);
+  const clearDps = useSldStore((s) => s.clearDps);
   const toggleLiveMode = useSldStore((s) => s.toggleLiveMode);
+  const switchUser = useSldStore((s) => s.switchUser);
+  const acknowledgeAllAlarms = useSldStore((s) => s.acknowledgeAllAlarms);
+  const can = useSldStore((s) => s.can);
 
-  const handleFileSelect = async (e) => {
+  const activeAlarms = alarms.filter((a) => !a.acknowledged);
+
+  const handleScdImport = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
       const { model, errors } = await parseScdFile(file);
-      if (errors.length > 0) {
-        console.error("SCD parse errors:", errors);
-        alert(`SCD parse errors:\n${errors.join("\n")}`);
-        return;
-      }
-      if (!model) {
-        alert("Failed to parse SCD file");
-        return;
-      }
-      importScd(model, file.name);
-    } catch (err) {
-      alert(`Error reading SCD: ${err.message}`);
-    }
+      if (errors.length > 0) { alert(`SCD errors:\n${errors.join("\n")}`); return; }
+      if (model) importScd(model, file.name);
+    } catch (err) { alert(`Error: ${err.message}`); }
+    e.target.value = "";
+  };
+
+  const handleDpsImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const { topology, errors } = await parseDpsFile(file);
+      if (errors.length > 0) { alert(`DPS errors:\n${errors.join("\n")}`); return; }
+      if (topology) importDps(topology, file.name);
+    } catch (err) { alert(`Error: ${err.message}`); }
     e.target.value = "";
   };
 
@@ -63,169 +79,160 @@ function AppHeader() {
       background: "#1e293b",
       display: "flex",
       alignItems: "center",
-      padding: "0 16px",
-      gap: "12px",
+      padding: "0 12px",
+      gap: "8px",
       borderBottom: "1px solid #334155",
+      flexShrink: 0,
     }}>
       {/* Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
         <div style={{
-          width: "28px",
-          height: "28px",
-          borderRadius: "6px",
+          width: "26px", height: "26px", borderRadius: "6px",
           background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#fff",
-          fontWeight: 800,
-          fontSize: "14px",
-        }}>
-          S
-        </div>
-        <span style={{ color: "#f8fafc", fontWeight: 700, fontSize: "15px" }}>
-          SLD Editor
-        </span>
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#fff", fontWeight: 800, fontSize: "13px",
+        }}>S</div>
+        <span style={{ color: "#f8fafc", fontWeight: 700, fontSize: "14px" }}>SLD</span>
       </div>
 
-      {/* Separator */}
-      <div style={{ width: "1px", height: "24px", background: "#334155" }} />
+      <Sep />
 
-      {/* SCD Import */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".scd,.scl,.xml"
-        onChange={handleFileSelect}
-        style={{ display: "none" }}
-      />
-      <HeaderButton onClick={() => fileInputRef.current?.click()}>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 1v8M3 5l4-4 4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M1 10v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-        </svg>
-        Import SCD
-      </HeaderButton>
+      {/* Import buttons */}
+      <input ref={scdInputRef} type="file" accept=".scd,.scl,.xml" onChange={handleScdImport} style={{ display: "none" }} />
+      <input ref={dpsInputRef} type="file" accept=".json" onChange={handleDpsImport} style={{ display: "none" }} />
 
-      {/* SCD status */}
-      {scdFileName && (
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{
-            fontSize: "10px",
-            padding: "2px 8px",
-            borderRadius: "10px",
-            background: "#166534",
-            color: "#bbf7d0",
-            fontWeight: 600,
-            fontFamily: "'JetBrains Mono', monospace",
-          }}>
-            SCD
-          </span>
-          <span style={{ fontSize: "11px", color: "#94a3b8" }}>{scdFileName}</span>
-          <button
-            onClick={clearScd}
-            style={{
-              fontSize: "9px",
-              color: "#f87171",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: "0 2px",
-            }}
-            title="Clear SCD"
-          >
-            ✕
-          </button>
-        </div>
+      {can("import_scd") && (
+        <HdrBtn onClick={() => scdInputRef.current?.click()}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 4.5L6 1.5l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 8.5v1.5a1 1 0 001 1h8a1 1 0 001-1V8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+          SCD
+        </HdrBtn>
       )}
 
-      {/* Live mode toggle */}
-      {scdModel && (
-        <>
-          <div style={{ width: "1px", height: "24px", background: "#334155" }} />
-          <button
-            onClick={toggleLiveMode}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "5px 12px",
-              fontSize: "11px",
-              fontWeight: 700,
-              color: liveMode ? "#000" : "#f8fafc",
-              background: liveMode ? "#22c55e" : "transparent",
-              border: liveMode ? "none" : "1px solid #475569",
-              borderRadius: "5px",
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-          >
-            <span style={{
-              width: "7px",
-              height: "7px",
-              borderRadius: "50%",
-              background: liveMode ? "#fff" : "#94a3b8",
-              animation: liveMode ? "pulse 1.5s infinite" : "none",
-            }} />
-            {liveMode ? "LIVE" : "Go Live"}
-          </button>
+      {can("import_dps") && (
+        <HdrBtn onClick={() => dpsInputRef.current?.click()}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 4.5L6 1.5l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 8.5v1.5a1 1 0 001 1h8a1 1 0 001-1V8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+          DPS
+        </HdrBtn>
+      )}
 
-          {scdModel.ieds && (
-            <span style={{
-              fontSize: "10px",
-              color: "#64748b",
-              fontFamily: "'JetBrains Mono', monospace",
-            }}>
-              {scdModel.ieds.length} IEDs
-            </span>
-          )}
-        </>
+      {/* File status badges */}
+      {scdFileName && (
+        <Badge color="#166534" bg="#bbf7d0" onClose={clearScd} closeable={can("import_scd")}>
+          SCD: {scdFileName}
+        </Badge>
+      )}
+      {dpsFileName && (
+        <Badge color="#1e40af" bg="#bfdbfe" onClose={clearDps} closeable={can("import_dps")}>
+          DPS: {dpsFileName}
+        </Badge>
+      )}
+
+      <Sep />
+
+      {/* Live mode */}
+      {(scdModel || dpsTopology) && (
+        <button
+          onClick={toggleLiveMode}
+          style={{
+            display: "flex", alignItems: "center", gap: "5px",
+            padding: "4px 10px", fontSize: "11px", fontWeight: 700,
+            color: liveMode ? "#000" : "#f8fafc",
+            background: liveMode ? "#22c55e" : "transparent",
+            border: liveMode ? "none" : "1px solid #475569",
+            borderRadius: "4px", cursor: "pointer",
+          }}
+        >
+          <span style={{
+            width: "6px", height: "6px", borderRadius: "50%",
+            background: liveMode ? "#fff" : "#94a3b8",
+            animation: liveMode ? "pulse 1.5s infinite" : "none",
+          }} />
+          {liveMode ? "LIVE" : "Go Live"}
+        </button>
+      )}
+
+      {/* Alarms */}
+      {activeAlarms.length > 0 && (
+        <button
+          onClick={acknowledgeAllAlarms}
+          style={{
+            display: "flex", alignItems: "center", gap: "4px",
+            padding: "4px 8px", fontSize: "11px", fontWeight: 700,
+            color: "#fff", background: "#dc2626",
+            border: "none", borderRadius: "4px", cursor: "pointer",
+            animation: "pulse 1s infinite",
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M6 1L1 11h10L6 1z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+            <line x1="6" y1="5" x2="6" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <circle cx="6" cy="9" r="0.6" fill="currentColor"/>
+          </svg>
+          {activeAlarms.length} ALARM{activeAlarms.length > 1 ? "S" : ""}
+        </button>
       )}
 
       <div style={{ flex: 1 }} />
 
-      <span style={{ color: "#64748b", fontSize: "11px" }}>
-        IEC 61850 SLD Editor
-      </span>
+      {/* User switcher */}
+      <select
+        value={currentUser.id}
+        onChange={(e) => switchUser(e.target.value)}
+        style={{
+          padding: "3px 8px", fontSize: "10px", fontWeight: 600,
+          border: `1px solid ${Roles[currentUser.role]?.color || "#475569"}`,
+          borderRadius: "4px", background: "#0f172a",
+          color: Roles[currentUser.role]?.color || "#94a3b8",
+          cursor: "pointer", outline: "none",
+          fontFamily: "'JetBrains Mono', monospace",
+        }}
+      >
+        {users.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.name} ({Roles[u.role]?.label})
+          </option>
+        ))}
+      </select>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
     </header>
   );
 }
 
-function HeaderButton({ onClick, children }) {
+function Sep() {
+  return <div style={{ width: "1px", height: "22px", background: "#334155", flexShrink: 0 }} />;
+}
+
+function HdrBtn({ onClick, children }) {
   return (
     <button
       onClick={onClick}
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "5px",
-        padding: "5px 10px",
-        fontSize: "11px",
-        fontWeight: 600,
-        color: "#cbd5e1",
-        background: "transparent",
-        border: "1px solid #475569",
-        borderRadius: "5px",
-        cursor: "pointer",
-        transition: "all 0.15s",
+        display: "flex", alignItems: "center", gap: "4px",
+        padding: "4px 8px", fontSize: "10px", fontWeight: 600,
+        color: "#94a3b8", background: "transparent",
+        border: "1px solid #475569", borderRadius: "4px", cursor: "pointer",
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "#3b82f6";
-        e.currentTarget.style.color = "#fff";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "#475569";
-        e.currentTarget.style.color = "#cbd5e1";
-      }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.color = "#fff"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#475569"; e.currentTarget.style.color = "#94a3b8"; }}
     >
       {children}
     </button>
+  );
+}
+
+function Badge({ color, bg, children, onClose, closeable }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: "4px",
+      fontSize: "9px", padding: "2px 6px", borderRadius: "10px",
+      background: bg, color, fontWeight: 600,
+      fontFamily: "'JetBrains Mono', monospace",
+    }}>
+      {children}
+      {closeable && (
+        <span onClick={onClose} style={{ cursor: "pointer", marginLeft: "2px", opacity: 0.7 }}>✕</span>
+      )}
+    </span>
   );
 }

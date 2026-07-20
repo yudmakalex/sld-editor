@@ -1,18 +1,28 @@
 import React, { useState } from "react";
 import { sldSchemas } from "../../schemas/sldSchemas";
+import { DpsEntityTypes } from "../../dps/dpsSchema";
 import SchemaTree from "./SchemaTree";
 import DrawingTree from "./DrawingTree";
 
 const componentList = [
-  { type: "CircuitBreaker", label: "Circuit Breaker", color: "#16a34a" },
-  { type: "Transformer", label: "Transformer", color: "#2563eb" },
-  { type: "Busbar", label: "Busbar", color: "#7c3aed" },
-  { type: "Generator", label: "Generator", color: "#16a34a" },
-  { type: "Load", label: "Load", color: "#d97706" },
-  { type: "Switch", label: "Disconnector", color: "#dc2626" },
-  { type: "Capacitor", label: "Capacitor Bank", color: "#0891b2" },
-  { type: "Ground", label: "Ground", color: "#64748b" },
+  { type: "CircuitBreaker", label: "Circuit Breaker", color: "#16a34a", group: "SLD" },
+  { type: "Transformer", label: "Transformer", color: "#2563eb", group: "SLD" },
+  { type: "Busbar", label: "Busbar", color: "#7c3aed", group: "SLD" },
+  { type: "Generator", label: "Generator", color: "#16a34a", group: "SLD" },
+  { type: "Load", label: "Load", color: "#d97706", group: "SLD" },
+  { type: "Switch", label: "Disconnector", color: "#dc2626", group: "SLD" },
+  { type: "Capacitor", label: "Capacitor Bank", color: "#0891b2", group: "SLD" },
+  { type: "Ground", label: "Ground", color: "#64748b", group: "SLD" },
 ];
+
+const dpsComponents = Object.entries(DpsEntityTypes).map(([type, cfg]) => ({
+  type: type === "ComputerSystem" ? "Load" : type === "PowerSupply" ? "Generator" : type === "PowerDistribution" ? "CircuitBreaker" : "Busbar",
+  label: cfg.label,
+  color: cfg.color,
+  group: "DPS",
+  dpsType: type,
+  symbol: cfg.symbol,
+}));
 
 const tabs = [
   { id: "palette", label: "Components" },
@@ -70,64 +80,34 @@ export default function Sidebar() {
       {/* Content */}
       {activeTab === "palette" && (
         <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+          {/* SLD Components */}
           <div style={{
-            fontSize: "10px",
-            color: "#94a3b8",
-            padding: "4px 8px 8px",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            fontWeight: 600,
+            fontSize: "9px", color: "#94a3b8", padding: "4px 8px 6px",
+            textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700,
           }}>
-            Drag to canvas
+            IEC SLD Components
           </div>
           {componentList.map((comp) => {
             const schema = sldSchemas[comp.type];
             const propCount = Object.keys(schema.properties).length;
-
             return (
-              <div
-                key={comp.type}
-                draggable
-                onDragStart={(e) => onDragStart(e, comp.type)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  padding: "8px 10px",
-                  marginBottom: "3px",
-                  borderRadius: "6px",
-                  cursor: "grab",
-                  background: "#fff",
-                  border: "1px solid #e2e8f0",
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = comp.color;
-                  e.currentTarget.style.background = `${comp.color}08`;
-                  e.currentTarget.style.transform = "translateX(2px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "#e2e8f0";
-                  e.currentTarget.style.background = "#fff";
-                  e.currentTarget.style.transform = "none";
-                }}
-              >
-                <div style={{
-                  width: "6px",
-                  height: "28px",
-                  borderRadius: "3px",
-                  background: comp.color,
-                  flexShrink: 0,
-                }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "12px", fontWeight: 600, color: "#1e293b" }}>{comp.label}</div>
-                  <div style={{ fontSize: "10px", color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
-                    {propCount} properties
-                  </div>
-                </div>
-              </div>
+              <DragItem key={comp.type} comp={comp} onDragStart={onDragStart}
+                subtitle={`${propCount} properties`} />
             );
           })}
+
+          {/* DPS Components */}
+          <div style={{
+            fontSize: "9px", color: "#94a3b8", padding: "12px 8px 6px",
+            textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700,
+            borderTop: "1px solid #e2e8f0", marginTop: "8px", paddingTop: "12px",
+          }}>
+            NVIDIA DPS Entities
+          </div>
+          {dpsComponents.map((comp, i) => (
+            <DragItem key={`dps-${i}`} comp={comp} onDragStart={onDragStart}
+              subtitle={comp.symbol} />
+          ))}
         </div>
       )}
 
@@ -142,6 +122,40 @@ export default function Sidebar() {
           <SchemaTree />
         </div>
       )}
+    </div>
+  );
+}
+
+function DragItem({ comp, onDragStart, subtitle }) {
+  return (
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, comp.type)}
+      style={{
+        display: "flex", alignItems: "center", gap: "10px",
+        padding: "7px 10px", marginBottom: "2px", borderRadius: "5px",
+        cursor: "grab", background: "#fff", border: "1px solid #e2e8f0",
+        transition: "all 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = comp.color;
+        e.currentTarget.style.background = `${comp.color}08`;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "#e2e8f0";
+        e.currentTarget.style.background = "#fff";
+      }}
+    >
+      <div style={{
+        width: "5px", height: "24px", borderRadius: "2px",
+        background: comp.color, flexShrink: 0,
+      }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: "11px", fontWeight: 600, color: "#1e293b" }}>{comp.label}</div>
+        <div style={{ fontSize: "9px", color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
+          {subtitle}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,177 @@
+{
+  "Entities": [
+    {
+      "Type": "PowerDomain",
+      "Name": "Rack-Row-A",
+      "OperatingLimit": {
+        "PowerValue": { "Value": 50, "Type": "kW" },
+        "PowerFactor": 0.97
+      },
+      "OverProvisioningPercentage": 15,
+      "Redfish": {
+        "URL": "https://bmc-rack-a.example.com/redfish/v1/PowerDomains/RackRowA",
+        "SecretName": "bmc-rack-a-creds"
+      },
+      "TelemetryId": "pd_rack_row_a"
+    },
+    {
+      "Type": "PowerDomain",
+      "Name": "Rack-Row-B",
+      "OperatingLimit": {
+        "PowerValue": { "Value": 50, "Type": "kW" },
+        "PowerFactor": 0.97
+      },
+      "OverProvisioningPercentage": 15,
+      "TelemetryId": "pd_rack_row_b"
+    },
+    {
+      "Type": "PowerDistribution",
+      "Name": "PDU-A1",
+      "Model": "APC-PDU8801",
+      "OperatingLimit": {
+        "PowerValue": { "Value": 30, "Type": "kW" },
+        "PowerFactor": 0.99
+      },
+      "Redfish": {
+        "URL": "https://pdu-a1.example.com/redfish/v1",
+        "SecretName": "pdu-creds"
+      },
+      "TelemetryId": "pdu_a1"
+    },
+    {
+      "Type": "PowerDistribution",
+      "Name": "PDU-A2",
+      "Model": "APC-PDU8801",
+      "OperatingLimit": {
+        "PowerValue": { "Value": 30, "Type": "kW" },
+        "PowerFactor": 0.99
+      },
+      "TelemetryId": "pdu_a2"
+    },
+    {
+      "Type": "PowerDistribution",
+      "Name": "PDU-B1",
+      "Model": "APC-PDU8801",
+      "OperatingLimit": {
+        "PowerValue": { "Value": 30, "Type": "kW" },
+        "PowerFactor": 0.99
+      },
+      "TelemetryId": "pdu_b1"
+    },
+    {
+      "Type": "PowerSupply",
+      "Name": "UPS-Main",
+      "Model": "APC-SRT3000",
+      "OperatingLimit": {
+        "PowerValue": { "Value": 100, "Type": "kW" },
+        "PowerFactor": 0.98
+      },
+      "OverProvisioningPercentage": 10,
+      "Redfish": {
+        "URL": "https://ups-main.example.com/redfish/v1",
+        "SecretName": "ups-creds"
+      },
+      "TelemetryId": "ups_main"
+    },
+    {
+      "Type": "ComputerSystem",
+      "Name": "GPU-Node-01",
+      "Model": "DGX-H100",
+      "Policy": "GPU-Power-Limit",
+      "Redfish": {
+        "URL": "https://gpu-01-bmc.example.com/redfish/v1",
+        "SecretName": "gpu-node-creds"
+      },
+      "Properties": {
+        "SerialNumber": "GPU0012345",
+        "ImportSource": "bcm",
+        "ImportExternalID": "dev-001"
+      },
+      "TelemetryId": "gpu_node_01"
+    },
+    {
+      "Type": "ComputerSystem",
+      "Name": "GPU-Node-02",
+      "Model": "DGX-H100",
+      "Policy": "GPU-Power-Limit",
+      "Properties": {
+        "SerialNumber": "GPU0012346",
+        "ImportSource": "bcm",
+        "ImportExternalID": "dev-002"
+      },
+      "TelemetryId": "gpu_node_02"
+    },
+    {
+      "Type": "ComputerSystem",
+      "Name": "CPU-Node-01",
+      "Model": "通用-x86-4U",
+      "Policy": "CPU-Power-Limit",
+      "Properties": {
+        "SerialNumber": "CPU0056789"
+      },
+      "TelemetryId": "cpu_node_01"
+    }
+  ],
+  "Topology": {
+    "Name": "DC-Room-A",
+    "Entities": [
+      {
+        "Name": "UPS-Main",
+        "FeedTag": "utility-feed",
+        "Children": ["PDU-A1", "PDU-A2", "PDU-B1"]
+      },
+      {
+        "Name": "PDU-A1",
+        "Children": ["Rack-Row-A"]
+      },
+      {
+        "Name": "PDU-A2",
+        "Children": ["Rack-Row-A"]
+      },
+      {
+        "Name": "PDU-B1",
+        "Children": ["Rack-Row-B"]
+      },
+      {
+        "Name": "Rack-Row-A",
+        "Children": ["GPU-Node-01", "GPU-Node-02"]
+      },
+      {
+        "Name": "Rack-Row-B",
+        "Children": ["CPU-Node-01"]
+      }
+    ]
+  },
+  "Policies": [
+    {
+      "Name": "GPU-Power-Limit",
+      "Limits": [
+        {
+          "ElementType": "Node",
+          "PowerLimit": { "Watts": 1000 }
+        },
+        {
+          "ElementType": "GPU",
+          "PowerLimit": { "Watts": 700 }
+        }
+      ]
+    },
+    {
+      "Name": "CPU-Power-Limit",
+      "Limits": [
+        {
+          "ElementType": "Node",
+          "PowerLimit": { "Percentage": 80 }
+        },
+        {
+          "ElementType": "CPU",
+          "PowerLimit": { "Percentage": 90 }
+        },
+        {
+          "ElementType": "Memory",
+          "PowerLimit": { "Percentage": 85 }
+        }
+      ]
+    }
+  ]
+}
