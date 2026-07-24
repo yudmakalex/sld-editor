@@ -187,11 +187,17 @@ export default function DrawingTree() {
   const selectedNodeId = useSldStore((s) => s.selectedNodeId);
   const selectNode = useSldStore((s) => s.selectNode);
   const autoLayout = useSldStore((s) => s.autoLayout);
+  const sldAutoLayout = useSldStore((s) => s.sldAutoLayout);
   const { fitView } = useReactFlow();
 
   const handleLayout = () => {
     autoLayout();
     setTimeout(() => fitView({ padding: 0.2, duration: 400 }), 50);
+  };
+
+  const handleSldLayout = () => {
+    sldAutoLayout();
+    setTimeout(() => fitView({ padding: 0.15, duration: 400 }), 50);
   };
 
   const { adj, inDegree } = useMemo(() => buildGraph(nodes, edges), [nodes, edges]);
@@ -239,7 +245,22 @@ export default function DrawingTree() {
                 fontWeight: 600,
               }}
             >
-              ↕ Layout
+              ↕ Tree
+            </button>
+            <button
+              onClick={handleSldLayout}
+              style={{
+                fontSize: "9px",
+                padding: "2px 6px",
+                border: "1px solid #7c3aed",
+                borderRadius: "3px",
+                background: "#f5f3ff",
+                color: "#7c3aed",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              ⚡ SLD
             </button>
             <button
               onClick={() => setShowDetails(!showDetails)}

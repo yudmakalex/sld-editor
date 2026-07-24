@@ -79,6 +79,7 @@ export default function Canvas() {
   const addEdge = useSldStore((s) => s.addEdge);
   const selectNode = useSldStore((s) => s.selectNode);
   const autoLayout = useSldStore((s) => s.autoLayout);
+  const sldAutoLayout = useSldStore((s) => s.sldAutoLayout);
 
   const onNodesChange = useCallback(
     (changes) => {
@@ -138,6 +139,11 @@ export default function Canvas() {
     setTimeout(() => fitView({ padding: 0.2, duration: 400 }), 50);
   }, [autoLayout, fitView]);
 
+  const handleSldLayout = useCallback(() => {
+    sldAutoLayout();
+    setTimeout(() => fitView({ padding: 0.15, duration: 400 }), 50);
+  }, [sldAutoLayout, fitView]);
+
   return (
     <div ref={reactFlowWrapper} style={{ flex: 1, height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Toolbar */}
@@ -159,7 +165,23 @@ export default function Canvas() {
             <line x1="7" y1="8" x2="3" y2="8" stroke="currentColor" strokeWidth="1.3" />
             <line x1="7" y1="8" x2="11" y2="8" stroke="currentColor" strokeWidth="1.3" />
           </svg>
-          Auto Layout
+          Tree Layout
+        </ToolbarButton>
+
+        <ToolbarButton onClick={handleSldLayout} title="Convert to traditional SLD bus-and-bay layout">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <line x1="3" y1="3" x2="3" y2="7" stroke="currentColor" strokeWidth="1.3" />
+            <line x1="7" y1="3" x2="7" y2="7" stroke="currentColor" strokeWidth="1.3" />
+            <line x1="11" y1="3" x2="11" y2="7" stroke="currentColor" strokeWidth="1.3" />
+            <rect x="1.5" y="7" width="3" height="3" rx="0.5" stroke="currentColor" strokeWidth="1" />
+            <rect x="5.5" y="7" width="3" height="3" rx="0.5" stroke="currentColor" strokeWidth="1" />
+            <rect x="9.5" y="7" width="3" height="3" rx="0.5" stroke="currentColor" strokeWidth="1" />
+            <line x1="3" y1="11" x2="3" y2="13" stroke="currentColor" strokeWidth="1" />
+            <line x1="7" y1="11" x2="7" y2="13" stroke="currentColor" strokeWidth="1" />
+            <line x1="11" y1="11" x2="11" y2="13" stroke="currentColor" strokeWidth="1" />
+          </svg>
+          SLD Layout
         </ToolbarButton>
 
         <ToolbarButton onClick={() => fitView({ padding: 0.2, duration: 300 })} title="Fit all nodes in view">

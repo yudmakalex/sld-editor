@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { getDefaultsByType } from "../schemas/sldSchemas";
 import { layoutGraph } from "../utils/layout";
+import { sldLayout } from "../utils/sldLayout";
 import { renderScdToFlow } from "../iec61850/renderer/scdRenderer";
 import { parseDpsTopology } from "../dps/renderer/dpsRenderer";
 import { liveEngine } from "../iec61850/live/liveEngine";
@@ -138,6 +139,12 @@ const useSldStore = create((set, get) => ({
     set({ nodes: laid });
   },
 
+  sldAutoLayout: () => {
+    const { nodes, edges } = get();
+    const { nodes: laidNodes, edges: laidEdges } = sldLayout(nodes, edges);
+    set({ nodes: laidNodes, edges: laidEdges });
+  },
+
   getSelectedNode: () => {
     const { nodes, selectedNodeId } = get();
     return nodes.find((n) => n.id === selectedNodeId) || null;
@@ -151,11 +158,12 @@ const useSldStore = create((set, get) => ({
     const { nodes: scdNodes, edges: scdEdges } = renderScdToFlow(scdModel);
     const allNodes = [...existingNodes, ...scdNodes];
     const allEdges = [...existingEdges, ...scdEdges];
-    const laid = layoutGraph(allNodes, allEdges);
+    // Apply SLD layout automatically
+    const { nodes: laidNodes, edges: laidEdges } = sldLayout(allNodes, allEdges);
     liveEngine.stop();
-    liveEngine.init(laid);
+    liveEngine.init(laidNodes);
     set({
-      nodes: laid, edges: allEdges, scdModel, scdFileName: fileName,
+      nodes: laidNodes, edges: laidEdges, scdModel, scdFileName: fileName,
       liveMode: false, liveStatuses: {},
     });
     return true;
@@ -174,11 +182,12 @@ const useSldStore = create((set, get) => ({
     const { nodes: dpsNodes, edges: dpsEdges } = parseDpsTopology(topology);
     const allNodes = [...existingNodes, ...dpsNodes];
     const allEdges = [...existingEdges, ...dpsEdges];
-    const laid = layoutGraph(allNodes, allEdges);
+    // Apply SLD layout automatically
+    const { nodes: laidNodes, edges: laidEdges } = sldLayout(allNodes, allEdges);
     liveEngine.stop();
-    liveEngine.init(laid);
+    liveEngine.init(laidNodes);
     set({
-      nodes: laid, edges: allEdges, dpsTopology: topology, dpsFileName: fileName,
+      nodes: laidNodes, edges: laidEdges, dpsTopology: topology, dpsFileName: fileName,
       liveMode: false, liveStatuses: {},
     });
     return true;
