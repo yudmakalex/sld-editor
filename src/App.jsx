@@ -7,6 +7,7 @@ import useSldStore from "./store/useSldStore";
 import { parseScdFile } from "./iec61850/parser/scdParser";
 import { parseDpsFile } from "./dps/renderer/dpsRenderer";
 import { Roles } from "./auth/roles";
+import { colors, typography, spacing, rounded } from "./design/tokens";
 
 export default function App() {
   return (
@@ -15,9 +16,11 @@ export default function App() {
         display: "flex",
         flexDirection: "column",
         height: "100vh",
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        background: colors.canvas,
+        color: colors.onPrimary,
       }}>
-        <AppHeader />
+        <NavBar />
         <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
           <Sidebar />
           <Canvas />
@@ -28,7 +31,7 @@ export default function App() {
   );
 }
 
-function AppHeader() {
+function NavBar() {
   const scdInputRef = useRef(null);
   const dpsInputRef = useRef(null);
 
@@ -74,165 +77,142 @@ function AppHeader() {
   };
 
   return (
-    <header style={{
-      height: "48px",
-      background: "#1e293b",
+    <nav style={{
+      height: "64px",
+      background: colors.canvas,
       display: "flex",
       alignItems: "center",
-      padding: "0 12px",
-      gap: "8px",
-      borderBottom: "1px solid #334155",
+      padding: `0 ${spacing.lg}px`,
+      gap: spacing.lg,
+      borderBottom: `1px solid ${colors.hairlineSoft}`,
       flexShrink: 0,
+      position: "relative",
+      zIndex: 100,
     }}>
-      {/* Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-        <div style={{
-          width: "26px", height: "26px", borderRadius: "6px",
-          background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#fff", fontWeight: 800, fontSize: "13px",
-        }}>S</div>
-        <span style={{ color: "#f8fafc", fontWeight: 700, fontSize: "14px" }}>SLD</span>
+      {/* Brand */}
+      <div style={{ display: "flex", alignItems: "center", gap: spacing.xs, flexShrink: 0 }}>
+        <span className="brand-dot" />
+        <span style={{
+          fontSize: 18,
+          fontWeight: 700,
+          color: colors.onPrimary,
+          letterSpacing: "-0.36px",
+        }}>
+          SLD Editor
+        </span>
       </div>
 
-      <Sep />
+      {/* Center nav items */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: spacing.lg,
+        position: "absolute",
+        left: "50%",
+        transform: "translateX(-50%)",
+      }}>
+        <NavItem label="Canvas" active />
+        <NavItem label="Topology" />
+        <NavItem label="Schemas" />
+      </div>
 
-      {/* Import buttons */}
-      <input ref={scdInputRef} type="file" accept=".scd,.scl,.xml" onChange={handleScdImport} style={{ display: "none" }} />
-      <input ref={dpsInputRef} type="file" accept=".json" onChange={handleDpsImport} style={{ display: "none" }} />
+      {/* Right cluster */}
+      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: spacing.md }}>
+        {/* Import inputs */}
+        <input ref={scdInputRef} type="file" accept=".scd,.scl,.xml" onChange={handleScdImport} style={{ display: "none" }} />
+        <input ref={dpsInputRef} type="file" accept=".json" onChange={handleDpsImport} style={{ display: "none" }} />
 
-      {can("import_scd") && (
-        <HdrBtn onClick={() => scdInputRef.current?.click()}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 4.5L6 1.5l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 8.5v1.5a1 1 0 001 1h8a1 1 0 001-1V8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-          SCD
-        </HdrBtn>
-      )}
+        {/* File badges */}
+        {scdFileName && (
+          <span className="badge badge-success" style={{ cursor: can("import_scd") ? "pointer" : "default" }}
+            onClick={() => can("import_scd") && clearScd()}>
+            SCD: {scdFileName} {can("import_scd") && "×"}
+          </span>
+        )}
+        {dpsFileName && (
+          <span className="badge badge-success" style={{ cursor: can("import_dps") ? "pointer" : "default" }}
+            onClick={() => can("import_dps") && clearDps()}>
+            DPS: {dpsFileName} {can("import_dps") && "×"}
+          </span>
+        )}
 
-      {can("import_dps") && (
-        <HdrBtn onClick={() => dpsInputRef.current?.click()}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 4.5L6 1.5l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 8.5v1.5a1 1 0 001 1h8a1 1 0 001-1V8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-          DPS
-        </HdrBtn>
-      )}
+        {/* Import buttons */}
+        {can("import_scd") && (
+          <button className="btn-secondary" onClick={() => scdInputRef.current?.click()}>
+            Import SCD
+          </button>
+        )}
+        {can("import_dps") && (
+          <button className="btn-secondary" onClick={() => dpsInputRef.current?.click()}>
+            Import DPS
+          </button>
+        )}
 
-      {/* File status badges */}
-      {scdFileName && (
-        <Badge color="#166534" bg="#bbf7d0" onClose={clearScd} closeable={can("import_scd")}>
-          SCD: {scdFileName}
-        </Badge>
-      )}
-      {dpsFileName && (
-        <Badge color="#1e40af" bg="#bfdbfe" onClose={clearDps} closeable={can("import_dps")}>
-          DPS: {dpsFileName}
-        </Badge>
-      )}
+        {/* Live mode */}
+        {(scdModel || dpsTopology) && (
+          <button
+            className={liveMode ? "btn-brand" : "btn-secondary"}
+            onClick={toggleLiveMode}
+          >
+            <span style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: liveMode ? colors.onPrimary : colors.mute,
+              animation: liveMode ? "pulse 1.5s infinite" : "none",
+            }} />
+            {liveMode ? "LIVE" : "Go Live"}
+          </button>
+        )}
 
-      <Sep />
+        {/* Alarms */}
+        {activeAlarms.length > 0 && (
+          <button className="btn-brand" onClick={acknowledgeAllAlarms}
+            style={{ animation: "pulse 1s infinite", background: colors.error }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M6 1L1 11h10L6 1z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+              <line x1="6" y1="5" x2="6" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              <circle cx="6" cy="9" r="0.6" fill="currentColor"/>
+            </svg>
+            {activeAlarms.length} ALARM{activeAlarms.length > 1 ? "S" : ""}
+          </button>
+        )}
 
-      {/* Live mode */}
-      {(scdModel || dpsTopology) && (
-        <button
-          onClick={toggleLiveMode}
+        {/* User switcher */}
+        <select
+          value={currentUser.id}
+          onChange={(e) => switchUser(e.target.value)}
           style={{
-            display: "flex", alignItems: "center", gap: "5px",
-            padding: "4px 10px", fontSize: "11px", fontWeight: 700,
-            color: liveMode ? "#000" : "#f8fafc",
-            background: liveMode ? "#22c55e" : "transparent",
-            border: liveMode ? "none" : "1px solid #475569",
-            borderRadius: "4px", cursor: "pointer",
+            padding: "4px 8px",
+            fontSize: 12,
+            fontFamily: "'IBM Plex Mono', monospace",
+            background: colors.canvasSoft,
+            color: colors.ash,
+            border: `1px solid ${colors.hairlineSoft}`,
+            borderRadius: rounded.appSm,
+            cursor: "pointer",
+            outline: "none",
           }}
         >
-          <span style={{
-            width: "6px", height: "6px", borderRadius: "50%",
-            background: liveMode ? "#fff" : "#94a3b8",
-            animation: liveMode ? "pulse 1.5s infinite" : "none",
-          }} />
-          {liveMode ? "LIVE" : "Go Live"}
-        </button>
-      )}
-
-      {/* Alarms */}
-      {activeAlarms.length > 0 && (
-        <button
-          onClick={acknowledgeAllAlarms}
-          style={{
-            display: "flex", alignItems: "center", gap: "4px",
-            padding: "4px 8px", fontSize: "11px", fontWeight: 700,
-            color: "#fff", background: "#dc2626",
-            border: "none", borderRadius: "4px", cursor: "pointer",
-            animation: "pulse 1s infinite",
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M6 1L1 11h10L6 1z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
-            <line x1="6" y1="5" x2="6" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-            <circle cx="6" cy="9" r="0.6" fill="currentColor"/>
-          </svg>
-          {activeAlarms.length} ALARM{activeAlarms.length > 1 ? "S" : ""}
-        </button>
-      )}
-
-      <div style={{ flex: 1 }} />
-
-      {/* User switcher */}
-      <select
-        value={currentUser.id}
-        onChange={(e) => switchUser(e.target.value)}
-        style={{
-          padding: "3px 8px", fontSize: "10px", fontWeight: 600,
-          border: `1px solid ${Roles[currentUser.role]?.color || "#475569"}`,
-          borderRadius: "4px", background: "#0f172a",
-          color: Roles[currentUser.role]?.color || "#94a3b8",
-          cursor: "pointer", outline: "none",
-          fontFamily: "'JetBrains Mono', monospace",
-        }}
-      >
-        {users.map((u) => (
-          <option key={u.id} value={u.id}>
-            {u.name} ({Roles[u.role]?.label})
-          </option>
-        ))}
-      </select>
-
-      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
-    </header>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>{u.name} ({Roles[u.role]?.label})</option>
+          ))}
+        </select>
+      </div>
+    </nav>
   );
 }
 
-function Sep() {
-  return <div style={{ width: "1px", height: "22px", background: "#334155", flexShrink: 0 }} />;
-}
-
-function HdrBtn({ onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: "flex", alignItems: "center", gap: "4px",
-        padding: "4px 8px", fontSize: "10px", fontWeight: 600,
-        color: "#94a3b8", background: "transparent",
-        border: "1px solid #475569", borderRadius: "4px", cursor: "pointer",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.color = "#fff"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#475569"; e.currentTarget.style.color = "#94a3b8"; }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Badge({ color, bg, children, onClose, closeable }) {
+function NavItem({ label, active }) {
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: "4px",
-      fontSize: "9px", padding: "2px 6px", borderRadius: "10px",
-      background: bg, color, fontWeight: 600,
-      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: 16,
+      fontWeight: active ? 500 : 400,
+      color: active ? colors.onPrimary : colors.ash,
+      cursor: "pointer",
+      padding: `${spacing.xs}px 0`,
+      borderBottom: active ? `2px solid ${colors.brand}` : "2px solid transparent",
+      transition: "all 0.15s",
     }}>
-      {children}
-      {closeable && (
-        <span onClick={onClose} style={{ cursor: "pointer", marginLeft: "2px", opacity: 0.7 }}>✕</span>
-      )}
+      {label}
     </span>
   );
 }

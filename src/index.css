@@ -1,3 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;425;500;600;700;800&display=swap');
+
+:root {
+  /* Brand */
+  --color-brand: #f36458;
+  --color-brand-deep: #dd0000;
+
+  /* Canvas */
+  --color-canvas: #0b0b0b;
+  --color-canvas-soft: #212121;
+  --color-canvas-light: #ffffff;
+  --color-canvas-paper: #ededed;
+
+  /* Hairlines */
+  --color-hairline-soft: #353535;
+  --color-hairline: #ededed;
+
+  /* Text */
+  --color-ink: #0b0b0b;
+  --color-ash: #b9b9b9;
+  --color-mute: #797979;
+  --color-on-primary: #ffffff;
+
+  /* SLD */
+  --color-busbar: #f36458;
+  --color-breaker-closed: #37cd84;
+  --color-breaker-open: #dd0000;
+  --color-transformer: #55beff;
+  --color-generator: #37cd84;
+  --color-load: #f59e0b;
+  --color-connection: #353535;
+
+  /* Fonts */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -11,7 +48,236 @@ html, body, #root {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
+  background: var(--color-canvas);
+  color: var(--color-on-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-canvas-soft);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-hairline-soft);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-mute);
+}
+
+/* React Flow overrides for dark theme */
+.react-flow__background {
+  background: var(--color-canvas) !important;
+}
+
+.react-flow__minimap {
+  background: var(--color-canvas-soft) !important;
+  border: 1px solid var(--color-hairline-soft) !important;
+  border-radius: 6px !important;
+}
+
+.react-flow__controls {
+  border: 1px solid var(--color-hairline-soft) !important;
+  border-radius: 6px !important;
+  overflow: hidden;
+}
+
+.react-flow__controls button {
+  background: var(--color-canvas-soft) !important;
+  border-color: var(--color-hairline-soft) !important;
+  color: var(--color-ash) !important;
+  fill: var(--color-ash) !important;
+}
+
+.react-flow__controls button:hover {
+  background: var(--color-canvas) !important;
+}
+
+.react-flow__controls button svg {
+  fill: var(--color-ash) !important;
+}
+
+.react-flow__edge-path {
+  stroke: var(--color-connection) !important;
+  stroke-width: 2 !important;
+}
+
+.react-flow__connection-line {
+  stroke: var(--color-brand) !important;
+  stroke-width: 2 !important;
+}
+
+/* SLD Node base styles */
+.sld-node {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sld-node:hover {
+  filter: brightness(1.1);
+}
+
+.sld-node.selected {
+  filter: drop-shadow(0 0 8px var(--color-brand));
+}
+
+/* Saniti button styles */
+.btn-primary {
+  background: var(--color-canvas-light);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 99999px;
+  border: 1px solid var(--color-ink);
+  cursor: pointer;
+  transition: all 0.15s;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary:hover {
+  background: var(--color-ink);
+  color: var(--color-on-primary);
+}
+
+.btn-secondary {
+  background: var(--color-canvas-soft);
+  color: var(--color-ash);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 5px;
+  border: 1px solid var(--color-hairline-soft);
+  cursor: pointer;
+  transition: all 0.15s;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-secondary:hover {
+  border-color: var(--color-ash);
+  color: var(--color-on-primary);
+}
+
+.btn-brand {
+  background: var(--color-brand);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 99999px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-brand:hover {
+  filter: brightness(1.1);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-ash);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 99999px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-ghost:hover {
+  color: var(--color-on-primary);
+}
+
+/* Mono eyebrow label */
+.mono-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--color-mute);
+  text-transform: uppercase;
+}
+
+/* Feature card dark */
+.feature-card-dark {
+  background: var(--color-canvas-soft);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: 12px;
+  padding: 32px;
+}
+
+/* Feature card brand */
+.feature-card-brand {
+  background: var(--color-brand);
+  color: var(--color-ink);
+  border-radius: 12px;
+  padding: 32px;
+}
+
+/* Brand dot */
+.brand-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 99999px;
+  background: var(--color-brand);
+  display: inline-block;
+}
+
+/* Badge */
+.badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 99999px;
+  background: var(--color-canvas-soft);
+  color: var(--color-ash);
+  border: 1px solid var(--color-hairline-soft);
+}
+
+.badge-brand {
+  background: var(--color-brand);
+  color: var(--color-ink);
+  border: none;
+}
+
+.badge-success {
+  background: rgba(55, 205, 132, 0.15);
+  color: var(--color-generator);
+}
+
+.badge-error {
+  background: rgba(221, 0, 0, 0.15);
+  color: var(--color-breaker-open);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes glow {
+  0%, 100% { filter: drop-shadow(0 0 2px var(--color-brand)); }
+  50% { filter: drop-shadow(0 0 8px var(--color-brand)); }
 }
